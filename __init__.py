@@ -82,7 +82,8 @@ class MyCustomPanel(bpy.types.Panel):
 class MY_UL_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         layout.label(text=item.name, icon="IMAGE_DATA")
-def enum_image_items(self, context):
+        layout.label(text=context.a, icon="OUTLINER_OB_MESH")
+def enum_image_items(self, context):    
     """EnumProperty callback"""
     items = []
     for i, img in enumerate(bpy.data.images):
