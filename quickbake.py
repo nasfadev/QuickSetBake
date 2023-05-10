@@ -144,16 +144,12 @@ class ReactiveNode(bpy.types.Operator):
             data = context.scene.MyData[index]
             material_slots = obj.material_slots
             image_name = data.textureName
-            print(str(len(material_slots)))
-            added = 300 * data.indexTexture 
             for material_slot in material_slots:
-                print("forww2")
                 material = material_slot.material
                 
                 if material:
                     material_node_tree = material.node_tree
                     texture_node = material.node_tree.nodes.get(data.nodeName)
-                    print("forww")
                     if texture_node:
                         texture_node.select = True
                         material_node_tree.nodes.active = texture_node
@@ -165,7 +161,7 @@ class ReactiveNode(bpy.types.Operator):
                         texture_node = material_node_tree.nodes.new('ShaderNodeTexImage')
                         texture_node.name = nodeName
                         
-                        texture_node.location = (-400 - added, 0)
+                        texture_node.location = (-400, 0)
                         texture_node.image = bpy.data.images[image_name]
 
                         # Seleksi dan buat node texture aktif
@@ -176,7 +172,7 @@ class ReactiveNode(bpy.types.Operator):
                         frame_node = material_node_tree.nodes.new('NodeFrame')
                         frame_node.name = frameNodeName
                         frame_node.label = image_name +" - "+ AddOnName
-                        frame_node.location = (-450 - added , 50)
+                        frame_node.location = (-450, 50)
                         frame_node.width = 400
                         frame_node.height = 300
                         frame_node.color = (0.105, 0, 1)
@@ -232,7 +228,6 @@ def DeleteNode(self, context, index):
                         material.node_tree.nodes.remove(texture_node)
                         texture_node2 = material.node_tree.nodes.get(item.frameNodeName)
                         material.node_tree.nodes.remove(texture_node2)
-                        print("jalkan")
             scene.MyData.remove(i)
         i+=1
 def AddNode(self, context, index):
@@ -251,7 +246,6 @@ def AddNode(self, context, index):
     for material_slot in material_slots:
         material = material_slot.material
         if material:
-            added = 300 * len(scene.MyData)
             nodeName = image_name + "_node_" + AddOnName + "_" + time_str
             frameNodeName = image_name + "_frameNode_" + AddOnName + "_" + time_str
             material_node_tree = material.node_tree
@@ -259,7 +253,7 @@ def AddNode(self, context, index):
             texture_node = material_node_tree.nodes.new('ShaderNodeTexImage')
             texture_node.name = nodeName
             
-            texture_node.location = (-400 - added, 0)
+            texture_node.location = (-400, 0)
             texture_node.image = bpy.data.images[image_name]
 
             # Seleksi dan buat node texture aktif
@@ -270,7 +264,7 @@ def AddNode(self, context, index):
             frame_node = material_node_tree.nodes.new('NodeFrame')
             frame_node.name = frameNodeName
             frame_node.label = image_name +" - "+ AddOnName
-            frame_node.location = (-450 - added, 50)
+            frame_node.location = (-450, 50)
             frame_node.width = 400
             frame_node.height = 300
             frame_node.color = (0.105, 0, 1)
@@ -288,10 +282,6 @@ def AddNode(self, context, index):
     custom_data_item.frameNodeName = frameNodeName
     custom_data_item.textureName = context.window_manager.image_enum
     custom_data_item.indexTexture =len(scene.MyData)
-    print(custom_data_item.indexTexture)
-        
-    for item in scene.MyData:
-        print("nodeName: {0}, frameNodeName: {1}, Texture: {2},  index: {3}".format(item.nodeName, item.frameNodeName, item.textureName, str(item.indexTexture)))
 
 classes = [Data,MY_UL_list,MY_OT_add_item,MY_OT_delete_item,MyCustomPanel,ReactiveNode,DeleteUnusedMaterial]
 def register():
