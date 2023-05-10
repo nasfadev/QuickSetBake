@@ -51,12 +51,21 @@ class MyCustomPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
+
+        scene = bpy.context.scene
+
+        # Tampilkan properti pencarian dengan daftar objek di scene
+        
         wm = context.window_manager
+
+        row = layout.row()
+        
         box = layout.box()
         box.label(text="Image Texture For Bake")
         row = box.row()
-        row.prop_menu_enum(wm, "image_enum",icon="IMAGE_DATA", text="")
-        row.label(text=wm.image_enum)
+        row.prop_search(wm, "image_enum", bpy.data, "images", icon="IMAGE_DATA", text="")
+
+
 
         row = box.row()
         row.operator("my_custom.add_item", icon="ADD", text="Add")
