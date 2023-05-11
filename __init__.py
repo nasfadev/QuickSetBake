@@ -19,7 +19,6 @@ from bpy.props import EnumProperty
 
 
 
-
 import datetime
 AddOnName = "QuickSetBake"
 # Ambil waktu saat ini
@@ -34,7 +33,9 @@ AddOnName = "QuickSetBake"
 
 
 
-
+class ListData(bpy.types.PropertyGroup):
+    mesh: bpy.props.PointerProperty(type=bpy.types.Object)
+    image: bpy.props.PointerProperty(type=bpy.types.Image)
 
 class Data(bpy.types.PropertyGroup):
     textureName: bpy.props.StringProperty(name="textureName")
@@ -58,10 +59,10 @@ class MyCustomPanel(bpy.types.Panel):
         
         wm = context.window_manager
 
-        row = layout.row()
+        
         
         box = layout.box()
-        box.label(text="Image Texture For Bake")
+        box.label(text="Select the Image Texture below")
         row = box.row()
         row.prop_search(wm, "image_enum", bpy.data, "images", icon="IMAGE_DATA", text="")
 
@@ -71,18 +72,25 @@ class MyCustomPanel(bpy.types.Panel):
         row.operator("my_custom.add_item", icon="ADD", text="Add")
         row.operator("my_custom.delete_item", icon="REMOVE", text="Delete")
         # row.operator("my_custom.delete_item", icon="FILE_REFRESH", text="Recheck")
-        listbox = box.template_list("MY_UL_list", "", context.scene, "custom_list", context.scene, "custom_list_index")
+        listbox = box.template_list("MY_UL_list", "", context.scene, "MyListData", context.scene, "list_index")
         if listbox:
             listbox.add()
             listbox.delete()
         row = box.row()
         row.operator("my_custom.reactive_nodes", icon="NODETREE", text="Reactive Nodes")
-        row = box.row()
+        row = layout.row()
         row.operator("my_custom.delete_unused_material", icon="MATERIAL", text="Delete Unused Material")
 class MY_UL_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        layout.label(text=item.name, icon="IMAGE_DATA")
-        layout.label(text=context.a, icon="OUTLINER_OB_MESH")
+        # layout.label(text=item.image.name, icon="IMAGE_DATA")
+        # layout.label(text=item.mesh.name, icon="OUTLINER_OB_MESH")
+        im = item.image
+        io = item.mesh
+        row = layout.row(align=True)
+        row.prop(im, "name", text="", emboss=False, icon_value=im.preview.icon_id)
+        row.prop(io, "name", text="", emboss=False, icon = "OUTLINER_OB_MESH")
+    def draw(self, context):
+        self.on_double_click(context.event)
 def enum_image_items(self, context):    
     """EnumProperty callback"""
     items = []
@@ -91,63 +99,85 @@ def enum_image_items(self, context):
     return items
 
 class MY_OT_add_item(bpy.types.Operator):
+    """Select data from the input above to add new data to the list"""
     bl_idname = "my_custom.add_item"
     bl_label = "Add Item"
-    
+    bl_options = {'REGISTER', 'UNDO'}
+
     @classmethod
     def poll(cls, context):
         return context.active_object is not None
     
     def execute(self, context):
         # Mengecek apakah nilai sudah ada di custom_list
-        for item in context.scene.custom_list:
-            if item.name == context.window_manager.image_enum:
-                self.report({'WARNING'}, "The image texture is already in the list")
-                return {'CANCELLED'}
+        self.report({'INFO'},  "added")
+        image_enum = context.window_manager.image_enum
+        object = context.active_object
+        if object.type == "MESH":
+            if object.material_slots:
+                for item in context.scene.MyListData:
+                    if item.image.name == image_enum and item.mesh.name == object.name:
+                        self.report({'WARNING'}, f"{object.name} already has the {image_enum} texture image")
+                        return {'CANCELLED'}
 
-        # Menambahkan item baru pada custom_list
-        item = context.scene.custom_list.add()
-        item.name = context.window_manager.image_enum
-        context.scene.custom_string = ""
-        index = context.scene.custom_list_index
-        AddNode(self, context, index)
-        self.report({'INFO'},  "The "+ item.name +" was successfully added")
-        return {'FINISHED'}
+
+                self.report({'INFO'},  "addedhmmmmmmm")
+                item = context.scene.MyListData.add()
+                self.report({'INFO'},  f"{len(context.scene.MyListData)}")
+                item.mesh = bpy.context.scene.objects[context.active_object.name]
+                item.image = bpy.data.images[context.window_manager.image_enum]
+                self.report({'INFO'},  "addedh???")
+                self.report({'INFO'},  f"{item.image.name}")
+                # Menambahkan item baru pada custom_list
+                index = context.scene.list_index
+                AddNode(self, context, index)
+                self.report({'INFO'},  f"{item.image.name} was successfully added to {item.mesh.name}")
+                return {'FINISHED'}
+            self.report({'WARNING'},  f"{object.name} has no materials")
+            return {'CANCELLED'}
+        self.report({'WARNING'},  f"{object.name} is an object of type {object.type} not MESH")
+        return {'CANCELLED'}
 
 class MY_OT_delete_item(bpy.types.Operator):
+    """Select the data in the list below that you want to delete."""
     bl_idname = "my_custom.delete_item"
     bl_label = "Delete Item"
-
+    bl_options = {'REGISTER', 'UNDO'}
     @classmethod
     def poll(cls, context):
-        return context.scene.custom_list_index >= 0
+        return context.scene.list_index >= 0
 
     def execute(self, context):
-        index = context.scene.custom_list_index
-        if len(context.scene.custom_list) <= 0 :
+        index = context.scene.list_index
+        if len(context.scene.MyListData) <= 0 :
             self.report({'WARNING'},  "The texture image is not available")
             return{'FINISHED'}
         try:
-            name = context.scene.custom_list[index].name 
+            data = context.scene.MyListData[index]
             DeleteNode(self, context, index)
-            context.scene.custom_list.remove(index)
-            self.report({'INFO'},  "The "+ name +" has been successfully deleted")
+            
+            self.report({'INFO'},  f"{data.image.name} was successfully deleted from {data.mesh.name}")
+            context.scene.MyListData.remove(index)
             return {'FINISHED'}
         except IndexError:
             self.report({'WARNING'},  "No image texture selected")
             return {'FINISHED'}
 class ReactiveNode(bpy.types.Operator):
-   
+    """Select the data in the list above that you want to reactivate the nodes that contain the texture image to bake.
+
+Note : if you have already added data to the list and just added new material after adding data to the list, then new nodes will be added to your new material.
+
+Important: the nodes that contain the texture image to be baked must be active if you want to bake, therefore you must run this command if your nodes are not active or you can do it manually"""
     bl_idname = "my_custom.reactive_nodes"
     bl_label = "Reactive Nodes"
-
+    bl_options = {'REGISTER', 'UNDO'}
     @classmethod
     def poll(cls, context):
         return context.active_object is not None
     def execute(self, context):
-        index = context.scene.custom_list_index
+        index = context.scene.list_index
         try:
-            obj = bpy.context.active_object
+            obj = context.scene.MyListData[index].mesh
             if len(context.scene.MyData) <= 0:
                 self.report({'WARNING'},  "The texture image is not available")
                 return{'FINISHED'}
@@ -193,53 +223,53 @@ class ReactiveNode(bpy.types.Operator):
                         material_node_tree.nodes.active = texture_node
                         
                         texture_node.parent = frame_node
-            self.report({'INFO'},  "The nodes have been successfully reactivated")
+            self.report({'INFO'},  f"The nodes in {obj.name} have been successfully reactive")
             return{'FINISHED'}
         except IndexError:
             self.report({'WARNING'},  "No image texture selected")
             return {'FINISHED'}
 class DeleteUnusedMaterial(bpy.types.Operator):
-   
+    """Delete all unused material in your object, meaning if there are 10 materials in your object, and only 5 materials are used on each face in your object, then the 5 that are not used will be removed from your object, not deleted from blender, so the material is still in blender material data but it's not in the object you selected.
+
+Note: you can delete unused material in multiple objects at once by selecting all the objects you want to delete unused material"""
     bl_idname = "my_custom.delete_unused_material"
     bl_label = "Delete Unused Material"
-
+    bl_options = {'REGISTER', 'UNDO'}
     @classmethod
     def poll(cls, context):
         return context.active_object is not None
     def execute(self, context):
-        obj = bpy.context.active_object
+        obj = context.active_object
         matcount = len(obj.material_slots)
         bpy.ops.object.material_slot_remove_unused()
         if matcount == len(obj.material_slots):
             self.report({'INFO'},  "All materials have been used")
         matcount -= len(obj.material_slots)
-        self.report({'INFO'},  "Removing "+ str(matcount) +" unused materials has been successful")
+        self.report({'INFO'},  f"Successfully removed {matcount} materials from {obj.name}")
         return{'FINISHED'}
 #class Recheck(bpy.types.Operator):
     
 def DeleteNode(self, context, index):
-    obj = bpy.context.active_object
+    obj = context.scene.MyListData[index].mesh
     scene = context.scene
-    selectedTexture = context.scene.custom_list[index]
-    i = 0;
-    for item in scene.MyData:
-        if selectedTexture.name == item.textureName:
-             # Mengambil semua slot material pada objek
-            material_slots = obj.material_slots
+    selectedTexture = context.scene.MyListData[index]
+    item = context.scene.MyData[index]
+    # Mengambil semua slot material pada objek
+    material_slots = obj.material_slots
 
-            # Looping melalui semua slot material dan menambahkan node image texture pada setiap material
-            for material_slot in material_slots:
-                # Mengambil material yang terkait dengan slot material
-                material = material_slot.material 
-                if material:
-                    # Membuat node image texture baru pada material
-                    texture_node = material.node_tree.nodes.get(item.nodeName)
-                    if texture_node:
-                        material.node_tree.nodes.remove(texture_node)
-                        texture_node2 = material.node_tree.nodes.get(item.frameNodeName)
-                        material.node_tree.nodes.remove(texture_node2)
-            scene.MyData.remove(i)
-        i+=1
+    # Looping melalui semua slot material dan menambahkan node image texture pada setiap material
+    for material_slot in material_slots:
+        # Mengambil material yang terkait dengan slot material
+        material = material_slot.material 
+        if material:
+            # Membuat node image texture baru pada material
+            texture_node = material.node_tree.nodes.get(item.nodeName)
+            if texture_node:
+                material.node_tree.nodes.remove(texture_node)
+                texture_node2 = material.node_tree.nodes.get(item.frameNodeName)
+                material.node_tree.nodes.remove(texture_node2)
+    scene.MyData.remove(index)
+        
 def AddNode(self, context, index):
     now = datetime.datetime.now()
 
@@ -293,10 +323,9 @@ def AddNode(self, context, index):
     custom_data_item.textureName = context.window_manager.image_enum
     custom_data_item.indexTexture =len(scene.MyData)
 
-classes = [Data,MY_UL_list,MY_OT_add_item,MY_OT_delete_item,MyCustomPanel,ReactiveNode,DeleteUnusedMaterial]
+classes = [ListData,Data,MY_UL_list,MY_OT_add_item,MY_OT_delete_item,MyCustomPanel,ReactiveNode,DeleteUnusedMaterial]
 def register():
     from bpy.types import WindowManager
-
     WindowManager.image_enum = EnumProperty(
         items=enum_image_items,
         description="Select an image",
@@ -310,9 +339,8 @@ def register():
     # bpy.utils.register_class(MyCustomPanel)
     # bpy.utils.register_class(ReactiveNode)
     # bpy.utils.register_class(DeleteUnusedMaterial)
-    bpy.types.Scene.custom_string = bpy.props.StringProperty(name="Custom String")
-    bpy.types.Scene.custom_list_index = bpy.props.IntProperty(name="Custom List Index", default=0)
-    bpy.types.Scene.custom_list = bpy.props.CollectionProperty(type=bpy.types.PropertyGroup, name="Custom List")
+    bpy.types.Scene.MyListData = bpy.props.CollectionProperty(type=ListData)
+    bpy.types.Scene.list_index = bpy.props.IntProperty(name="This is the list of data that you have added.", default=0)
     bpy.types.Scene.MyData = bpy.props.CollectionProperty(type=Data)
     
 def unregister():
@@ -328,9 +356,8 @@ def unregister():
     # bpy.utils.unregister_class(MyCustomPanel)
     # bpy.utils.unregister_class(ReactiveNode)
     # bpy.utils.unregister_class(DeleteUnusedMaterial)
-    del bpy.types.Scene.custom_string
-    del bpy.types.Scene.custom_list_index
-    del bpy.types.Scene.custom_list
+    del bpy.types.Scene.MyListData
+    del bpy.types.Scene.list_index
     del bpy.types.Scene.MyData
 if __name__ == "__main__":
     register()
