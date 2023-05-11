@@ -35,7 +35,7 @@ AddOnName = "QuickSetBake"
 
 class ListData(bpy.types.PropertyGroup):
     mesh: bpy.props.PointerProperty(type=bpy.types.Object)
-    image: bpy.props.PointerProperty(type=bpy.types.Object)
+    image: bpy.props.PointerProperty(type=bpy.types.Image)
 
 class Data(bpy.types.PropertyGroup):
     textureName: bpy.props.StringProperty(name="textureName")
@@ -101,17 +101,20 @@ class MY_OT_add_item(bpy.types.Operator):
     
     def execute(self, context):
         # Mengecek apakah nilai sudah ada di custom_list
+        self.report({'INFO'},  "added")
         for item in context.scene.MyListData:
             if item.image.name == context.window_manager.image_enum:
                 self.report({'WARNING'}, "The image texture is already in the list")
                 return {'CANCELLED'}
 
 
-
+        self.report({'INFO'},  "addedhmmmmmmm")
         item = context.scene.MyListData.add()
-        item.mesh = context.active_object
+        self.report({'INFO'},  f"{len(context.scene.MyListData)}")
+        item.mesh = bpy.context.scene.objects[context.active_object.name]
         item.image = bpy.data.images[context.window_manager.image_enum]
-
+        self.report({'INFO'},  "addedh???")
+        self.report({'INFO'},  f"{item.image.name}")
         # Menambahkan item baru pada custom_list
         index = context.scene.custom_list_index
         AddNode(self, context, index)
@@ -313,7 +316,7 @@ def register():
     # bpy.utils.register_class(MyCustomPanel)
     # bpy.utils.register_class(ReactiveNode)
     # bpy.utils.register_class(DeleteUnusedMaterial)
-    bpy.types.Scene.MyListData = bpy.props.PointerProperty(type=ListData)
+    bpy.types.Scene.MyListData = bpy.props.CollectionProperty(type=ListData)
     bpy.types.Scene.custom_list_index = bpy.props.IntProperty(name="Custom List Index", default=0)
     bpy.types.Scene.MyData = bpy.props.CollectionProperty(type=Data)
     
